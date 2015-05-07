@@ -3,9 +3,10 @@
 // TODO: move global game functions into a class
 var canvas = document.getElementById('board');
 var ctx = canvas.getContext('2d');
-var CANVAS_DIMENSION = 600; //TODO scale with canvas
+var CANVAS_DIMENSION = 560; //TODO scale with canvas
 var DIMENSION = 20;
 var TILE_DIMENSION = CANVAS_DIMENSION / DIMENSION;
+var TILE_SPACING = 3;
 var SNAKE_INIT_LEN = 5;
 var SNAKE_LEN_STEP = 1;
 var snakes = [];
@@ -125,7 +126,7 @@ function gameDraw (){
                 default:
                     ctx.fillStyle = "green";
             }
-            ctx.fillRect(i*TILE_DIMENSION, j*TILE_DIMENSION, TILE_DIMENSION, TILE_DIMENSION);
+            ctx.fillRect(i*TILE_DIMENSION+TILE_SPACING, j*TILE_DIMENSION+TILE_SPACING, TILE_DIMENSION-TILE_SPACING, TILE_DIMENSION-TILE_SPACING);
             if (outlineTile){
                 ctx.fillRect(i*TILE_DIMENSION, j*TILE_DIMENSION, TILE_DIMENSION, TILE_DIMENSION);
                 outlineTile = false;
@@ -303,6 +304,7 @@ SnakeAgent.prototype.calculatePathToNibble = function(startPoint, endPoint) {
             delete predMap[currentId];
             currentId = nextId;
         }
+
         return orderedPath;
     }
 
@@ -393,8 +395,15 @@ SnakeAgent.prototype.proposeMove = function (){
     if (this.pathToTake.length === 0) {
         console.log("POS? {0}".format(this.pos));
         this.pathToTake = this.calculatePathToNibble(this.headPos, [nibblex, nibbley]);
-        this.printPath();
-        (this.pathToTake).splice(0,1);
+        if (this.pathToTake) {
+            this.printPath();
+            (this.pathToTake).splice(0,1);
+        } 
+        else {
+            console.log("A* FAILED!");
+            gameOver = true;
+            return [-1,-1];
+        }
     } 
 
     this.candidateHead = (this.pathToTake).splice(0,1)[0];
