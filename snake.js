@@ -31,7 +31,7 @@ function gameInit(){
     gameReset();
 
     // Play
-    window.setInterval(gameMain, 1000);
+    window.setInterval(gameMain, 100);
 }
 
 function gameReset(){
@@ -223,6 +223,7 @@ var Tile = function (x, y){
 SnakeAgent.prototype.calculatePathToNibble = function(startPoint, endPoint) {
 
     var allTilesExplored = {};
+    var snakePosition = this.pos;
 
     // ** BEGIN HELPER FUNCTIONS **
 
@@ -230,6 +231,8 @@ SnakeAgent.prototype.calculatePathToNibble = function(startPoint, endPoint) {
     function generateNeighbourNodes(nId) {
         var neighbours = [];
         var n = allTilesExplored[nId];
+
+        //generate possible neighbours based on dimenions
         if (n.x > 0){
             neighbours.push(new Tile(n.x-1, n.y));
         }
@@ -242,10 +245,38 @@ SnakeAgent.prototype.calculatePathToNibble = function(startPoint, endPoint) {
         if (n.y < DIMENSION-1){
             neighbours.push(new Tile(n.x, n.y+1));
         }
-        //console.log("number_of neibs = {0}".format(neighbours.length));
+
+        //verify neighbours aren't a part of the snake 
+        var snakex, snakey, neighbourTile;
+        var goodNeighbours = [];
+
+        for (var neighbour in neighbours) {
+
+            neighbourTile = neighbours[neighbour];
+            var keepNeighbour = true;
+
+            for (var snakePoint in snakePosition) {
+
+                snakex = (snakePosition[snakePoint])[0];
+                snakey = (snakePosition[snakePoint])[1];
+
+                //console.log("> SX={0}, PX={1} <> SY={2}, PY={3}".format(snakex, neighbourTile.x, snakey, neighbourTile.y));
+
+                if ((neighbourTile.x == snakex) && (neighbourTile.y == snakey)) {
+                    console.log("BAD NEIGHBOUR ({0},{1})".format(neighbourTile.x, neighbourTile.y));
+                    keepNeighbour = false;
+                    break;
+                } 
+            }
+
+            if (keepNeighbour){
+                goodNeighbours.push(neighbourTile);
+            }
+        }
+
         var neighbourIds = [];
-        for (var i=0; i<neighbours.length; i++){
-            var b = neighbours[i];
+        for (var i=0; i<goodNeighbours.length; i++){
+            var b = goodNeighbours[i];
             if (!allTilesExplored.hasOwnProperty(b.id)){
                 allTilesExplored[b.id] = b;
             }
@@ -360,6 +391,7 @@ SnakeAgent.prototype.calculatePathToNibble = function(startPoint, endPoint) {
 SnakeAgent.prototype.proposeMove = function (){
     //this.candidateHead = this.dumbMove();
     if (this.pathToTake.length === 0) {
+        console.log("POS? {0}".format(this.pos));
         this.pathToTake = this.calculatePathToNibble(this.headPos, [nibblex, nibbley]);
         this.printPath();
         (this.pathToTake).splice(0,1);
