@@ -52,7 +52,7 @@ function gameReset(){
     for (i=headPos[1]; i<= tailPos[1]; i++){
         board[headPos[0]][i] = id+1;
     }
-
+    gameOver = false;
     // Position the nibble
     newNibble();
 }
@@ -88,6 +88,10 @@ function gameMain (){
             snakes[0].popTail();
         }
         snakes[0].printSnake();
+    } 
+    else {
+        alert("The snake died! Dismiss the prompt to try again.");
+        gameInit();
     }
 }
 
@@ -393,7 +397,6 @@ SnakeAgent.prototype.calculatePathToNibble = function(startPoint, endPoint) {
 SnakeAgent.prototype.proposeMove = function (){
     //this.candidateHead = this.dumbMove();
     if (this.pathToTake.length === 0) {
-        console.log("POS? {0}".format(this.pos));
         this.pathToTake = this.calculatePathToNibble(this.headPos, [nibblex, nibbley]);
         if (this.pathToTake) {
             this.printPath();
@@ -401,7 +404,6 @@ SnakeAgent.prototype.proposeMove = function (){
         } 
         else {
             console.log("A* FAILED!");
-            gameOver = true;
             return [-1,-1];
         }
     } 
