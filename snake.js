@@ -31,7 +31,7 @@ function gameInit(){
     gameReset();
 
     // Play
-    window.setInterval(gameMain, 1);
+    window.setInterval(gameMain, 1000);
 }
 
 function gameReset(){
@@ -57,6 +57,7 @@ function gameReset(){
 }
 
 function newNibble (){
+    board[nibblex][nibbley] = 0;
     do {
         nibblex = Math.floor(Math.random() * DIMENSION);
         nibbley = Math.floor(Math.random() * DIMENSION);
@@ -76,6 +77,8 @@ function gameMain (){
             gameOver = true;
         }
         else if (result == "nibble_eaten"){
+            
+            //gameOver = true; /ONCE ONLY
             newNibble();
             snakes[0].grow();
         }
@@ -139,6 +142,7 @@ var SnakeAgent = function (id, headPos, tailPos) {
     this.headPos = headPos;
 	this.len = tailPos[1] - headPos[1] + 1;
     this.candidateHead = [-1,-1];
+    this.pathToTake = [];
     for (var i=0; i<= this.len; i++){
         this.pos[i] = [this.headPos[0], tailPos[1]-i];
     }
@@ -208,10 +212,9 @@ SnakeAgent.prototype.dumbMove = function (){
 };
 
 var Tile = function (x, y){
-    this.n = x*DIMENSION + y;
-    this.id = n.toString(this.n);
     this.x = x;
     this.y = y;
+    this.id = (this.x).toString() + "_" + (this.y).toString();
     this.futurePathScore = -1;
     this.pastPathScore = -1;
 };
@@ -224,38 +227,48 @@ SnakeAgent.prototype.calculatePathToNibble = function(startPoint, endPoint) {
     // ** BEGIN HELPER FUNCTIONS **
 
     // function to generate the neighbours of a tile
-    function generateNeighbourNodes(n) {
+    function generateNeighbourNodes(nId) {
         var neighbours = [];
+        var n = allTilesExplored[nId];
         if (n.x > 0){
             neighbours.push(new Tile(n.x-1, n.y));
         }
         if (n.x < DIMENSION-1){
-            neighbours.push(new Tile(n.x+1), n.y);
+            neighbours.push(new Tile(n.x+1, n.y));
         }
         if (n.y > 0){
-            neighbours.push(new Tile(n.x, n.y+1));
-        }
-        if (n.y < DIMENSION-1){
             neighbours.push(new Tile(n.x, n.y-1));
         }
-
+        if (n.y < DIMENSION-1){
+            neighbours.push(new Tile(n.x, n.y+1));
+        }
+        //console.log("number_of neibs = {0}".format(neighbours.length));
         var neighbourIds = [];
-        for (var b in neighbours){
-            allTilesExplored[b.id] = b;
+        for (var i=0; i<neighbours.length; i++){
+            var b = neighbours[i];
+            if (!allTilesExplored.hasOwnProperty(b.id)){
+                allTilesExplored[b.id] = b;
+            }
             neighbourIds.push(b.id);
         }
 
         return neighbourIds;
     }
 
+    function tileIdToCoords(id){
+        var tile = allTilesExplored[id];
+        return [tile.x, tile.y];
+    }
+
     // function to reconstruct the lowest cost path
     function reconstructPath(predMap, endId) {
-        var orderedPath = [endId];
-        var nextId = endId;
-        var currentId;
-        while (predMap.hasOwnProperty(currentId) {
+        var orderedPath = [tileIdToCoords(endId)];
+        var currentId = endId;
+        var nextId;
+
+        while (predMap.hasOwnProperty(currentId)) {
             nextId = predMap[currentId];
-            orderedPath = [nextId].concat(orderedPath);
+            orderedPath = [tileIdToCoords(nextId)].concat(orderedPath);
             delete predMap[currentId];
             currentId = nextId;
         }
@@ -263,10 +276,11 @@ SnakeAgent.prototype.calculatePathToNibble = function(startPoint, endPoint) {
     }
 
     function getTileWithLowestFuturePathScore(tileIdList) {
-        var currentTile;
+        var currentTile, currentId;
         var lowestScore = Number.MAX_VALUE;
         var lowestTile;
-        for (var currentId in tileIdList) {
+        for (var i=0; i<tileIdList.length; i++) {
+            currentId = tileIdList[i];
             currentTile = allTilesExplored[currentId];
             if (currentTile.futurePathScore < 0) {
                 continue;
@@ -293,29 +307,34 @@ SnakeAgent.prototype.calculatePathToNibble = function(startPoint, endPoint) {
     var nibbleTile = new Tile (nibblex, nibbley);
     var startTile = new Tile (startPoint[0], startPoint[1]);
 
-    startTile.pastPathScore = 0;
-    startTile.futurePathScore = distance(startTile.id, nibbleTile.id);
-
     allTilesExplored[startTile.id] = startTile;
     allTilesExplored[nibbleTile.id] = nibbleTile;
 
+    startTile.pastPathScore = 0;
+    startTile.futurePathScore = distance(startTile.id, nibbleTile.id);
     var openSet = [startTile.id];
     var closedSet = [];
     var predecessors = {};
-
+    //console.log("starting A*");
     while (openSet.length > 0){
         var currentId = getTileWithLowestFuturePathScore(openSet);
+        //console.log("currentId={0}".format(currentId));
         var currentTile = allTilesExplored[currentId];
 
         if (currentId == nibbleTile.id) {
-            return reconstructPath(predecessors, nibbleTile.id);
+            var myPath = reconstructPath(predecessors, nibbleTile.id);
+            return myPath;
         }
 
         openSet.splice(openSet.indexOf(currentId), 1);
         closedSet.push(currentId);
 
-        for (var neighbourId in generateNeighbourNodes(currentId)) {
+        var neighbours = generateNeighbourNodes(currentId);
 
+        //console.log("openSet {0}, neighbs {1}".format(openSet, neighbours));
+
+        for (var i=0; i<neighbours.length; i++) {
+            var neighbourId = neighbours[i];
             if (closedSet.indexOf(neighbourId) >= 0) {
                 continue;
             }
@@ -339,7 +358,15 @@ SnakeAgent.prototype.calculatePathToNibble = function(startPoint, endPoint) {
 };
 
 SnakeAgent.prototype.proposeMove = function (){
-    this.candidateHead = this.dumbMove();
+    //this.candidateHead = this.dumbMove();
+    if (this.pathToTake.length === 0) {
+        this.pathToTake = this.calculatePathToNibble(this.headPos, [nibblex, nibbley]);
+        this.printPath();
+        (this.pathToTake).splice(0,1);
+    } 
+
+    this.candidateHead = (this.pathToTake).splice(0,1)[0];
+    //(this.pathToTake).splice(0,1);
     return this.candidateHead;
 };
 
@@ -369,6 +396,19 @@ SnakeAgent.prototype.printSnake = function() {
     }
     snakeStr += "]";
     console.log(snakeStr);
+};
+
+SnakeAgent.prototype.printPath = function() {
+    var pathStr = "Path: [";
+    var x,y;
+
+    for (var i=0; i<this.pathToTake.length; i++){
+        x = this.pathToTake[i][0];
+        y = this.pathToTake[i][1];
+        pathStr += "(" + x.toString() + "," + y.toString() + "), ";
+    }
+    pathStr += "]";
+    console.log(pathStr);
 };
 
 // end SnakeAgent
